@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WPU AI Student Performance Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --orange:   #F47920;
+    --orange2:  #d96510;
+    --black:    #111111;
+    --black2:   #1a1a1a;
+    --white:    #FFFFFF;
+    --bg:       #F7F7F7;
+    --card:     #FFFFFF;
+    --dark:     #111111;
+    --muted:    #666666;
+    --border:   #E5E5E5;
+    --green:    #16a34a;
+    --red:      #dc2626;
+    --yellow:   #d97706;
+    --shadow:   0 2px 12px rgba(0,0,0,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--dark); min-height: 100vh; }
+
+  /* ── LOGIN ─────────────────────────────────────────────── */
+  #login-screen {
+    min-height: 100vh; background: var(--black);
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    gap: 2.5rem; padding: 2rem; position: relative; overflow: hidden;
+  }
+  #login-screen::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; background:var(--orange); }
+  #login-screen::after  {
+    content:''; position:absolute; bottom:-140px; right:-140px;
+    width:420px; height:420px; border-radius:50%;
+    background:radial-gradient(circle,rgba(244,121,32,0.12) 0%,transparent 70%);
+    pointer-events:none;
+  }
+  .login-logo { text-align:center; position:relative; z-index:1; }
+  .login-logo img { height:52px; margin-bottom:1.25rem; filter:brightness(0) invert(1); display:block; margin-left:auto; margin-right:auto; }
+  .login-logo h1 { color:#fff; font-size:1.45rem; font-weight:700; letter-spacing:-0.02em; line-height:1.25; }
+  .login-logo h1 span { color:var(--orange); }
+  .login-logo p { color:rgba(255,255,255,0.38); font-size:0.8rem; margin-top:0.4rem; }
+  .login-divider { width:56px; height:3px; background:var(--orange); border-radius:2px; }
+  .login-cards { display:flex; gap:1.25rem; flex-wrap:wrap; justify-content:center; position:relative; z-index:1; }
+  .login-card {
+    background:rgba(255,255,255,0.04); border:1.5px solid rgba(255,255,255,0.09);
+    border-radius:16px; padding:2rem 2.25rem; cursor:pointer; text-align:center;
+    transition:all 0.2s ease; min-width:170px;
+  }
+  .login-card:hover { background:rgba(244,121,32,0.08); border-color:var(--orange); transform:translateY(-3px); box-shadow:0 12px 32px rgba(244,121,32,0.18); }
+  .login-card .icon { font-size:2.25rem; margin-bottom:0.7rem; }
+  .login-card h3 { color:#fff; font-size:0.97rem; font-weight:600; }
+  .login-card p  { color:rgba(255,255,255,0.4); font-size:0.74rem; margin-top:0.3rem; line-height:1.5; }
+
+  /* ── SIDEBAR ────────────────────────────────────────────── */
+  #app { display:none; min-height:100vh; }
+  .sidebar { position:fixed; top:0; left:0; height:100vh; width:228px; background:var(--black); display:flex; flex-direction:column; z-index:100; }
+  .sidebar-top { border-bottom:1px solid rgba(255,255,255,0.07); padding:1.2rem 1.2rem 0.9rem; }
+  .sidebar-logo img { height:34px; filter:brightness(0) invert(1); display:block; margin-bottom:0.55rem; }
+  .sidebar-tagline { font-size:0.66rem; font-weight:700; color:var(--orange); text-transform:uppercase; letter-spacing:0.1em; }
+  .sidebar-role    { font-size:0.68rem; color:rgba(255,255,255,0.3); margin-top:0.08rem; }
+  .sidebar-nav { flex:1; padding:0.9rem 0.7rem; display:flex; flex-direction:column; gap:0.18rem; overflow-y:auto; }
+  .nav-item {
+    display:flex; align-items:center; gap:0.65rem; padding:0.55rem 0.72rem;
+    border-radius:8px; cursor:pointer; color:rgba(255,255,255,0.42);
+    font-size:0.82rem; font-weight:500; transition:all 0.15s ease;
+  }
+  .nav-item:hover { background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.82); }
+  .nav-item.active { background:var(--orange); color:#fff; }
+  .nav-item .nav-icon { font-size:0.95rem; width:19px; text-align:center; flex-shrink:0; }
+  .notif-dot { width:7px; height:7px; border-radius:50%; background:var(--red); margin-left:auto; flex-shrink:0; }
+  .sidebar-user { padding:0.9rem 1.2rem; border-top:1px solid rgba(255,255,255,0.07); display:flex; align-items:center; gap:0.65rem; }
+  .user-avatar { width:33px; height:33px; border-radius:50%; background:var(--orange); display:flex; align-items:center; justify-content:center; color:#fff; font-size:0.76rem; font-weight:700; flex-shrink:0; }
+  .user-info p    { color:#fff; font-size:0.79rem; font-weight:600; }
+  .user-info span { color:rgba(255,255,255,0.3); font-size:0.66rem; }
+  .logout-btn { margin-left:auto; background:none; border:none; cursor:pointer; color:rgba(255,255,255,0.22); font-size:1rem; padding:0.2rem; transition:color 0.15s; flex-shrink:0; }
+  .logout-btn:hover { color:var(--orange); }
+
+  /* ── MAIN ───────────────────────────────────────────────── */
+  .main { margin-left:228px; min-height:100vh; padding:1.9rem; }
+  .page-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:1.65rem; flex-wrap:wrap; gap:0.75rem; }
+  .page-header h2 { font-size:1.45rem; font-weight:700; color:var(--dark); letter-spacing:-0.03em; }
+  .page-header p  { font-size:0.78rem; color:var(--muted); margin-top:0.18rem; }
+
+  /* CARD */
+  .card { background:var(--card); border-radius:13px; padding:1.15rem 1.35rem; box-shadow:var(--shadow); border:1px solid var(--border); }
+  .card-title { font-size:0.68rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.7rem; }
+
+  /* STAT GRID */
+  .stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:0.95rem; margin-bottom:1.4rem; }
+  .stat-card { background:var(--card); border-radius:13px; padding:1.05rem 1.25rem; box-shadow:var(--shadow); border:1px solid var(--border); position:relative; overflow:hidden; }
+  .stat-card::after { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+  .stat-card.c-orange::after { background:var(--orange); }
+  .stat-card.c-black::after  { background:var(--black);  }
+  .stat-card.c-green::after  { background:var(--green);  }
+  .stat-card.c-red::after    { background:var(--red);    }
+  .stat-card.c-yellow::after { background:var(--yellow); }
+  .stat-label { font-size:0.67rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; }
+  .stat-value { font-size:1.9rem; font-weight:700; color:var(--dark); letter-spacing:-0.04em; margin:0.18rem 0 0; line-height:1.05; }
+  .stat-sub   { font-size:0.7rem; color:var(--muted); margin-top:0.28rem; }
+
+  /* GRIDS */
+  .grid-2   { display:grid; grid-template-columns:1fr 1fr; gap:1.15rem; margin-bottom:1.15rem; }
+  .grid-3-2 { display:grid; grid-template-columns:1.6fr 1fr; gap:1.15rem; margin-bottom:1.15rem; }
+  .grid-full { margin-bottom:1.15rem; }
+
+  /* COURSE ROWS */
+  .course-item { display:flex; align-items:center; gap:0.85rem; padding:0.65rem 0; border-bottom:1px solid var(--border); }
+  .course-item:last-child { border-bottom:none; }
+  .course-dot  { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .course-name { flex:1; font-size:0.83rem; font-weight:600; line-height:1.3; }
+  .course-name span { font-size:0.66rem; color:var(--muted); font-weight:400; display:block; }
+  .course-bar  { flex:2; background:var(--border); border-radius:99px; height:5px; overflow:hidden; }
+  .course-fill { height:100%; border-radius:99px; }
+  .course-grade { font-family:'DM Mono',monospace; font-size:0.8rem; font-weight:500; min-width:32px; text-align:right; }
+  .course-trend { font-size:0.69rem; min-width:42px; text-align:right; }
+  .trend-up   { color:var(--green); }
+  .trend-down { color:var(--red);   }
+  .trend-flat { color:var(--muted); }
+
+  /* ALERTS */
+  .alert-item { display:flex; gap:0.65rem; padding:0.75rem; border-radius:10px; margin-bottom:0.5rem; }
+  .alert-item:last-child { margin-bottom:0; }
+  .al-info    { background:#fff8f3; border:1px solid #fdd8b5; }
+  .al-warn    { background:#fefce8; border:1px solid #fde047; }
+  .al-success { background:#f0fdf4; border:1px solid #bbf7d0; }
+  .al-red     { background:#fef2f2; border:1px solid #fecaca; }
+  .alert-icon { font-size:0.95rem; flex-shrink:0; margin-top:0.04rem; }
+  .alert-text p    { font-size:0.8rem; color:var(--dark); line-height:1.45; }
+  .alert-text span { font-size:0.67rem; color:var(--muted); display:block; margin-top:0.12rem; }
+
+  /* TABLE */
+  .data-table { width:100%; border-collapse:collapse; }
+  .data-table th { font-size:0.67rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; padding:0.52rem 0.8rem; text-align:left; background:var(--bg); border-bottom:1.5px solid var(--border); }
+  .data-table td { font-size:0.81rem; padding:0.62rem 0.8rem; border-bottom:1px solid var(--border); }
+  .data-table tr:last-child td { border-bottom:none; }
+  .data-table tr:hover td { background:#fafafa; }
+  .td-name { font-weight:600; color:var(--dark); }
+  .td-id   { font-size:0.68rem; color:var(--muted); font-family:'DM Mono',monospace; }
+  .mono    { font-family:'DM Mono',monospace; font-size:0.77rem; }
+
+  /* BADGE */
+  .badge { display:inline-block; font-size:0.66rem; font-weight:700; padding:0.15rem 0.52rem; border-radius:20px; }
+  .badge-green  { background:#dcfce7; color:#166534; }
+  .badge-red    { background:#fee2e2; color:#991b1b; }
+  .badge-yellow { background:#fef9c3; color:#854d0e; }
+  .badge-orange { background:#fff3e8; color:#9a4500; }
+
+  /* RISK PILL */
+  .risk-pill { display:inline-block; font-size:0.67rem; font-weight:700; padding:0.16rem 0.56rem; border-radius:20px; }
+  .rp-high   { background:#fee2e2; color:#991b1b; }
+  .rp-medium { background:#fef9c3; color:#854d0e; }
+  .rp-low    { background:#dcfce7; color:#166534; }
+
+  /* MINI BAR */
+  .mini-bar  { background:var(--border); border-radius:99px; height:5px; width:68px; overflow:hidden; display:inline-block; vertical-align:middle; }
+  .mini-fill { height:100%; border-radius:99px; }
+
+  /* CHARTS */
+  .chart-wrap    { position:relative; height:200px; }
+  .chart-wrap-sm { position:relative; height:162px; }
+
+  /* BUTTONS */
+  .btn { display:inline-flex; align-items:center; gap:0.33rem; padding:0.48rem 0.95rem; border-radius:8px; font-size:0.78rem; font-weight:600; cursor:pointer; border:none; transition:all 0.15s; font-family:'Sora',sans-serif; }
+  .btn-orange  { background:var(--orange); color:#fff; }
+  .btn-orange:hover { background:var(--orange2); }
+  .btn-outline { background:transparent; color:var(--dark); border:1.5px solid var(--border); }
+  .btn-outline:hover { border-color:var(--orange); color:var(--orange); }
+  .btn-sm { padding:0.33rem 0.72rem; font-size:0.73rem; }
+
+  @media(max-width:900px){
+    .stat-grid{grid-template-columns:repeat(2,1fr);}
+    .grid-2,.grid-3-2{grid-template-columns:1fr;}
+    .sidebar{width:54px;}
+    .sidebar-top .sidebar-tagline,.sidebar-top .sidebar-role,.sidebar-logo img,.nav-item span,.user-info,.logout-btn{display:none;}
+    .sidebar-top{padding:0.7rem;}
+    .nav-item{justify-content:center;}
+    .main{margin-left:54px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-logo">
+    <img src="https://www.wpunj.edu/template/wp24/images/wpStackedBlack.png" alt="William Paterson University" onerror="this.style.display='none'" />
+    <h1>AI Student <span>Performance</span> Dashboard</h1>
+    <p>William Paterson University &nbsp;·&nbsp; Wayne, NJ</p>
+  </div>
+  <div class="login-divider"></div>
+  <div class="login-cards">
+    <div class="login-card" onclick="login('student')">
+      <div class="icon">🎓</div>
+      <h3>Student Login</h3>
+      <p>View your grades,<br>risk level &amp; AI insights</p>
+    </div>
+    <div class="login-card" onclick="login('advisor')">
+      <div class="icon">👩‍🏫</div>
+      <h3>Advisor Login</h3>
+      <p>Monitor students &amp;<br>at-risk alerts</p>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <nav class="sidebar">
+    <div class="sidebar-top">
+      <div class="sidebar-logo">
+        <img src="https://www.wpunj.edu/template/wp24/images/wpStackedBlack.png" alt="WPU" onerror="this.style.display='none'" />
+      </div>
+      <div class="sidebar-tagline">AI Dashboard</div>
+      <div class="sidebar-role" id="sidebar-role-label">Student Portal</div>
+    </div>
+    <div class="sidebar-nav" id="sidebar-nav"></div>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="sidebar-avatar">J</div>
+      <div class="user-info">
+        <p id="sidebar-name">Jordan Reyes</p>
+        <span id="sidebar-email">jordan@wpunj.edu</span>
+      </div>
+      <button class="logout-btn" onclick="logout()" title="Log out">↩</button>
+    </div>
+  </nav>
+  <main class="main" id="main-content"></main>
+</div>
+
+<script>
+const ORANGE='#F47920',BLACK='#111111',GREEN='#16a34a',RED='#dc2626',YELLOW='#d97706',GRAY='#9ca3af';
+
+const SD = {
+  name:"Jordan Reyes",email:"jordan@wpunj.edu",avatar:"JR",id:"WPU-2024-0847",
+  gpa:2.8,riskScore:"High",riskPct:78,semester:"Spring 2025",
+  courses:[
+    {name:"Calculus II",      code:"MATH 202",color:RED,   grade:66,prev:78,trend:-12},
+    {name:"Business Writing", code:"ENGL 215",color:GREEN, grade:88,prev:85,trend: +3},
+    {name:"Economics 101",    code:"ECON 101",color:YELLOW,grade:74,prev:76,trend: -2},
+    {name:"Intro to Python",  code:"CIS 110", color:ORANGE,grade:91,prev:89,trend: +2},
+    {name:"History 201",      code:"HIST 201",color:GRAY,  grade:71,prev:73,trend: -2},
+  ],
+  assignments:[
+    {name:"Calculus HW 4",   course:"MATH 202",due:"Apr 14",status:"Missing",  score:null},
+    {name:"Calculus HW 5",   course:"MATH 202",due:"Apr 21",status:"Missing",  score:null},
+    {name:"Business Memo",   course:"ENGL 215",due:"Apr 22",status:"Submitted",score:"91/100"},
+    {name:"Econ Quiz 3",     course:"ECON 101",due:"Apr 23",status:"Submitted",score:"74/100"},
+    {name:"Python Project 2",course:"CIS 110", due:"Apr 28",status:"Pending",  score:null},
+    {name:"History Essay 2", course:"HIST 201",due:"May 1", status:"Pending",  score:null},
+  ],
+  grades:[82,80,79,77,75,73,70,66],
+  labels:["Feb 26","Mar 5","Mar 12","Mar 19","Mar 26","Apr 2","Apr 9","Apr 16"],
+  alerts:[
+    {type:"al-red",    icon:"⚠️",msg:"You've missed 2 Calculus assignments. Your grade has dropped 12 points since February.",time:"2 hours ago"},
+    {type:"al-info",   icon:"💡",msg:"Booking a Math tutor session could help you recover 5–8 points before finals.",time:"2 hours ago"},
+    {type:"al-info",   icon:"📅",msg:"Your advisor has requested a check-in. Check your WPU email for scheduling.",time:"1 hour ago"},
+    {type:"al-success",icon:"🎯",msg:"Great work in Python! Your 91 is above the class average of 83.",time:"Yesterday"},
+  ],
+};
+
+const AD = {
+  name:"Dr. Elena Martinez",email:"martinez@wpunj.edu",avatar:"EM",dept:"Academic Advising · WPU",
+  students:[
+    {name:"Jordan Reyes",    id:"WPU-2024-0847",gpa:2.8,risk:"High",  riskPct:78,delta:-0.4,alerts:2},
+    {name:"Aaliyah Thompson",id:"WPU-2024-0312",gpa:2.5,risk:"High",  riskPct:82,delta:-0.6,alerts:3},
+    {name:"Marcus Chen",     id:"WPU-2024-0556",gpa:3.1,risk:"Medium",riskPct:45,delta:-0.2,alerts:1},
+    {name:"Priya Sharma",    id:"WPU-2024-0729",gpa:3.7,risk:"Low",   riskPct:12,delta:+0.1,alerts:0},
+    {name:"Ethan Williams",  id:"WPU-2024-0891",gpa:3.4,risk:"Low",   riskPct:18,delta: 0,  alerts:0},
+    {name:"Sofia Gonzalez",  id:"WPU-2024-0133",gpa:2.9,risk:"Medium",riskPct:55,delta:-0.3,alerts:1},
+    {name:"Isaiah Parker",   id:"WPU-2024-0467",gpa:3.2,risk:"Low",   riskPct:22,delta:+0.2,alerts:0},
+    {name:"Mei Lin",         id:"WPU-2024-0981",gpa:3.9,risk:"Low",   riskPct: 8,delta:+0.3,alerts:0},
+  ],
+  riskCounts:{High:2,Medium:2,Low:4},retention:88,avgGpa:3.19,
+};
+
+let currentRole=null, charts={};
+const riskColor=r=>r==='High'?RED:r==='Medium'?YELLOW:GREEN;
+const riskPill =r=>r==='High'?'rp-high':r==='Medium'?'rp-medium':'rp-low';
+const initials =n=>n.split(' ').map(x=>x[0]).join('');
+
+function login(role){
+  currentRole=role;
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  const d=role==='student'?SD:AD;
+  document.getElementById('sidebar-name').textContent=d.name;
+  document.getElementById('sidebar-email').textContent=d.email;
+  document.getElementById('sidebar-avatar').textContent=d.avatar;
+  document.getElementById('sidebar-role-label').textContent=role==='student'?'Student Portal':'Advisor Portal';
+  const items=role==='student'
+    ?[{id:'overview',icon:'📊',label:'Overview'},{id:'courses',icon:'📚',label:'My Courses'},{id:'assignments',icon:'📝',label:'Assignments'},{id:'alerts',icon:'🔔',label:'Alerts',notif:true}]
+    :[{id:'students',icon:'👥',label:'All Students'},{id:'at-risk',icon:'⚠️',label:'At-Risk Students',notif:true},{id:'analytics',icon:'📈',label:'Class Analytics'}];
+  document.getElementById('sidebar-nav').innerHTML=items.map(n=>`
+    <div class="nav-item" id="nav-${n.id}" onclick="nav('${n.id}')">
+      <span class="nav-icon">${n.icon}</span><span>${n.label}</span>
+      ${n.notif?'<span class="notif-dot"></span>':''}
+    </div>`).join('');
+  nav(role==='student'?'overview':'students');
+}
+
+function logout(){
+  Object.values(charts).forEach(c=>c.destroy());charts={};
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+}
+
+function nav(page){
+  Object.values(charts).forEach(c=>c.destroy());charts={};
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  const el=document.getElementById('nav-'+page);if(el)el.classList.add('active');
+  const renders={overview:pOverview,courses:pCourses,assignments:pAssignments,alerts:pAlerts,students:pStudents,'at-risk':pAtRisk,analytics:pAnalytics};
+  document.getElementById('main-content').innerHTML=(renders[page]||_=>'')();
+  requestAnimationFrame(()=>initCharts(page));
+}
+
+/* ── STUDENT PAGES ── */
+function pOverview(){
+  return `
+  <div class="page-header">
+    <div><h2>Good morning, Jordan 👋</h2><p>William Paterson University · ${SD.semester} · ID: ${SD.id}</p></div>
+    <button class="btn btn-orange btn-sm" onclick="nav('alerts')">🔔 View Alerts</button>
+  </div>
+  <div class="stat-grid">
+    <div class="stat-card c-black"><div class="stat-label">Current GPA</div><div class="stat-value">${SD.gpa}</div><div class="stat-sub">↓ 0.3 from last semester</div></div>
+    <div class="stat-card c-red"><div class="stat-label">AI Risk Level</div><div class="stat-value" style="font-size:1.3rem;color:var(--red)">${SD.riskScore}</div><div class="stat-sub">Confidence: ${SD.riskPct}%</div></div>
+    <div class="stat-card c-orange"><div class="stat-label">Missing Work</div><div class="stat-value">2</div><div class="stat-sub">MATH 202 assignments</div></div>
+    <div class="stat-card c-green"><div class="stat-label">Best Course</div><div class="stat-value" style="font-size:1.2rem;color:var(--green)">CIS 110</div><div class="stat-sub">Grade: 91 · Above avg</div></div>
+  </div>
+  <div class="grid-3-2">
+    <div class="card"><div class="card-title">Grade Trend — Last 8 Weeks</div><div class="chart-wrap"><canvas id="trendChart"></canvas></div></div>
+    <div class="card">
+      <div class="card-title">AI Risk Assessment</div>
+      <div style="text-align:center;padding:0.5rem 0 0.75rem">
+        <div style="font-size:2rem;font-weight:700;color:var(--red);letter-spacing:-0.04em">${SD.riskScore}</div>
+        <div style="font-size:0.68rem;color:var(--muted);margin-top:0.1rem">Score: ${SD.riskPct}/100</div>
+      </div>
+      <div style="background:var(--border);border-radius:99px;height:7px;overflow:hidden;margin-bottom:0.35rem">
+        <div style="width:${SD.riskPct}%;height:100%;background:linear-gradient(90deg,${YELLOW},${RED});border-radius:99px"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:0.6rem;color:var(--muted);margin-bottom:0.9rem"><span>Low</span><span>Medium</span><span>High</span></div>
+      <div class="alert-item al-info"><div class="alert-icon">💡</div><div class="alert-text"><p>Raising your Calculus grade 8 points would move you to Medium risk.</p><span>AI recommendation</span></div></div>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="card"><div class="card-title">Course Performance</div>
+      ${SD.courses.map(c=>`
+        <div class="course-item">
+          <div class="course-dot" style="background:${c.color}"></div>
+          <div class="course-name">${c.name}<span>${c.code}</span></div>
+          <div class="course-bar"><div class="course-fill" style="width:${c.grade}%;background:${c.color}"></div></div>
+          <div class="course-grade">${c.grade}</div>
+          <div class="course-trend ${c.trend>0?'trend-up':c.trend<0?'trend-down':'trend-flat'}">${c.trend>0?'▲':c.trend<0?'▼':'—'} ${Math.abs(c.trend)}</div>
+        </div>`).join('')}
+    </div>
+    <div class="card"><div class="card-title">AI Recommendations</div>
+      ${SD.alerts.map(a=>`<div class="alert-item ${a.type}"><div class="alert-icon">${a.icon}</div><div class="alert-text"><p>${a.msg}</p><span>${a.time}</span></div></div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function pCourses(){
+  return `
+  <div class="page-header"><div><h2>My Courses</h2><p>${SD.semester}</p></div></div>
+  <div class="grid-2">
+    ${SD.courses.map(c=>`
+      <div class="card" style="border-top:3px solid ${c.color}">
+        <div style="display:flex;justify-content:space-between;margin-bottom:0.75rem">
+          <div><div style="font-weight:700;font-size:0.92rem">${c.name}</div><div style="font-size:0.67rem;color:var(--muted);font-family:'DM Mono',monospace;margin-top:0.08rem">${c.code}</div></div>
+          <div style="text-align:right"><div style="font-size:1.65rem;font-weight:700;color:${c.color};letter-spacing:-0.04em">${c.grade}</div><div style="font-size:0.63rem;color:var(--muted)">current</div></div>
+        </div>
+        <div style="background:var(--border);border-radius:99px;height:5px;overflow:hidden;margin-bottom:0.65rem"><div style="width:${c.grade}%;height:100%;background:${c.color};border-radius:99px"></div></div>
+        <div style="display:flex;gap:1.1rem;font-size:0.72rem;color:var(--muted)">
+          <span>Previous: <strong style="color:var(--dark)">${c.prev}</strong></span>
+          <span>Change: <strong style="color:${c.trend>=0?GREEN:RED}">${c.trend>=0?'+':''}${c.trend}</strong></span>
+        </div>
+      </div>`).join('')}
+  </div>
+  <div class="card grid-full"><div class="card-title">Current vs Previous Grade</div><div class="chart-wrap"><canvas id="courseChart"></canvas></div></div>`;
+}
+
+function pAssignments(){
+  const miss=SD.assignments.filter(a=>a.status==='Missing').length;
+  return `
+  <div class="page-header"><div><h2>Assignments</h2><p>${SD.semester}</p></div>${miss>0?`<span class="badge badge-red">${miss} Missing</span>`:''}</div>
+  <div class="card"><table class="data-table">
+    <thead><tr><th>Assignment</th><th>Course</th><th>Due</th><th>Status</th><th>Score</th></tr></thead>
+    <tbody>${SD.assignments.map(a=>`<tr>
+      <td class="td-name">${a.name}</td>
+      <td class="mono" style="color:var(--muted)">${a.course}</td>
+      <td style="color:var(--muted);font-size:0.76rem">${a.due}</td>
+      <td><span class="badge ${a.status==='Submitted'?'badge-green':a.status==='Missing'?'badge-red':'badge-yellow'}">${a.status}</span></td>
+      <td class="mono">${a.score||'—'}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function pAlerts(){
+  return `
+  <div class="page-header"><div><h2>Alerts &amp; Recommendations</h2><p>AI-generated insights</p></div></div>
+  <div class="card" style="max-width:640px">
+    ${SD.alerts.map(a=>`<div class="alert-item ${a.type}" style="margin-bottom:0.6rem"><div class="alert-icon" style="font-size:1.15rem">${a.icon}</div><div class="alert-text"><p style="font-size:0.82rem">${a.msg}</p><span>${a.time}</span></div></div>`).join('')}
+  </div>`;
+}
+
+/* ── ADVISOR PAGES ── */
+function pStudents(){
+  return `
+  <div class="page-header"><div><h2>All Students</h2><p>${AD.dept} · Spring 2025</p></div></div>
+  <div class="stat-grid">
+    <div class="stat-card c-black"><div class="stat-label">Total</div><div class="stat-value">${AD.students.length}</div><div class="stat-sub">Under your advising</div></div>
+    <div class="stat-card c-red"><div class="stat-label">High Risk</div><div class="stat-value">${AD.riskCounts.High}</div><div class="stat-sub">Immediate attention</div></div>
+    <div class="stat-card c-yellow"><div class="stat-label">Medium Risk</div><div class="stat-value">${AD.riskCounts.Medium}</div><div class="stat-sub">Monitor closely</div></div>
+    <div class="stat-card c-green"><div class="stat-label">Avg GPA</div><div class="stat-value">${AD.avgGpa}</div><div class="stat-sub">Spring 2025</div></div>
+  </div>
+  <div class="card"><div class="card-title">Student Roster</div>
+    <table class="data-table">
+      <thead><tr><th>Student</th><th>GPA</th><th>Risk</th><th>Score</th><th>GPA Δ</th><th>Alerts</th><th>Action</th></tr></thead>
+      <tbody>${AD.students.map(s=>`<tr>
+        <td><div class="td-name">${s.name}</div><div class="td-id">${s.id}</div></td>
+        <td class="mono" style="font-weight:600">${s.gpa}</td>
+        <td><span class="risk-pill ${riskPill(s.risk)}">${s.risk}</span></td>
+        <td><span style="display:inline-flex;align-items:center;gap:0.38rem"><span class="mini-bar"><span class="mini-fill" style="width:${s.riskPct}%;background:${riskColor(s.risk)}"></span></span><span class="mono" style="font-size:0.68rem;color:var(--muted)">${s.riskPct}</span></span></td>
+        <td class="mono" style="color:${s.delta>=0?GREEN:RED}">${s.delta>=0?'+':''}${s.delta.toFixed(1)}</td>
+        <td>${s.alerts>0?`<span class="badge badge-red">${s.alerts}</span>`:'<span style="color:var(--muted);font-size:0.73rem">—</span>'}</td>
+        <td><button class="btn btn-outline btn-sm">Message</button></td>
+      </tr>`).join('')}</tbody>
+    </table>
+  </div>`;
+}
+
+function pAtRisk(){
+  const at=[...AD.students].filter(s=>s.risk==='High'||s.risk==='Medium').sort((a,b)=>b.riskPct-a.riskPct);
+  return `
+  <div class="page-header"><div><h2>At-Risk Students</h2><p>Sorted by risk score</p></div></div>
+  ${at.map(s=>`
+    <div class="card" style="margin-bottom:0.95rem;border-left:4px solid ${riskColor(s.risk)}">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.7rem">
+        <div style="display:flex;align-items:center;gap:0.8rem">
+          <div style="width:38px;height:38px;border-radius:50%;background:${s.risk==='High'?'#fee2e2':'#fef9c3'};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;color:${riskColor(s.risk)};flex-shrink:0">${initials(s.name)}</div>
+          <div><div style="font-weight:700;font-size:0.9rem">${s.name}</div><div class="td-id">${s.id}</div></div>
+        </div>
+        <div style="display:flex;gap:1.4rem">
+          ${[['Risk Score',s.riskPct,riskColor(s.risk)],['GPA',s.gpa,BLACK],['Alerts',s.alerts,RED]].map(([l,v,c])=>`
+            <div style="text-align:center">
+              <div style="font-size:1.3rem;font-weight:700;color:${c};letter-spacing:-0.04em">${v}</div>
+              <div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em">${l}</div>
+            </div>`).join('')}
+        </div>
+        <div style="display:flex;gap:0.45rem">
+          <button class="btn btn-orange btn-sm">Message</button>
+          <button class="btn btn-outline btn-sm">Schedule</button>
+        </div>
+      </div>
+      <div style="margin-top:0.8rem;background:var(--border);border-radius:99px;height:5px;overflow:hidden">
+        <div style="width:${s.riskPct}%;height:100%;background:${riskColor(s.risk)};border-radius:99px"></div>
+      </div>
+    </div>`).join('')}`;
+}
+
+function pAnalytics(){
+  return `
+  <div class="page-header"><div><h2>Class Analytics</h2><p>Spring 2025 · ${AD.students.length} students</p></div></div>
+  <div class="grid-2">
+    <div class="card"><div class="card-title">Risk Distribution</div><div class="chart-wrap-sm"><canvas id="riskChart"></canvas></div></div>
+    <div class="card"><div class="card-title">GPA by Student</div><div class="chart-wrap-sm"><canvas id="gpaChart"></canvas></div></div>
+  </div>
+  <div class="card grid-full"><div class="card-title">Risk Scores — All Students</div><div class="chart-wrap"><canvas id="allRiskChart"></canvas></div></div>
+  <div class="stat-grid">
+    <div class="stat-card c-green"><div class="stat-label">Retention Rate</div><div class="stat-value">${AD.retention}%</div><div class="stat-sub">On track to complete</div></div>
+    <div class="stat-card c-orange"><div class="stat-label">Average GPA</div><div class="stat-value">${AD.avgGpa}</div><div class="stat-sub">Class average</div></div>
+    <div class="stat-card c-red"><div class="stat-label">Need Support</div><div class="stat-value">${AD.riskCounts.High+AD.riskCounts.Medium}</div><div class="stat-sub">High or medium risk</div></div>
+    <div class="stat-card c-black"><div class="stat-label">On Track</div><div class="stat-value">${AD.riskCounts.Low}</div><div class="stat-sub">Low risk students</div></div>
+  </div>`;
+}
+
+/* ── CHARTS ── */
+function initCharts(page){
+  const base={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};
+
+  if(page==='overview'){
+    const ctx=document.getElementById('trendChart');
+    if(ctx) charts.t=new Chart(ctx,{type:'line',data:{labels:SD.labels,datasets:[{data:SD.grades,borderColor:ORANGE,backgroundColor:'rgba(244,121,32,0.08)',borderWidth:2.5,fill:true,tension:0.4,pointRadius:4,pointBackgroundColor:ORANGE,pointBorderColor:'#fff',pointBorderWidth:2}]},options:{...base,scales:{y:{min:55,max:95,grid:{color:'#f0f0f0'},ticks:{font:{family:'DM Mono',size:10}}},x:{grid:{display:false},ticks:{font:{size:10},maxRotation:30}}}}});
+  }
+  if(page==='courses'){
+    const ctx=document.getElementById('courseChart');
+    if(ctx) charts.c=new Chart(ctx,{type:'bar',data:{labels:SD.courses.map(c=>c.name),datasets:[{label:'Current',data:SD.courses.map(c=>c.grade),backgroundColor:SD.courses.map(c=>c.color),borderRadius:6,barPercentage:0.5},{label:'Previous',data:SD.courses.map(c=>c.prev),backgroundColor:'rgba(0,0,0,0.08)',borderRadius:6,barPercentage:0.5}]},options:{...base,plugins:{legend:{display:true,labels:{font:{size:11,family:'Sora'},boxWidth:12}}},scales:{y:{min:50,max:100,grid:{color:'#f0f0f0'},ticks:{font:{family:'DM Mono',size:10}}},x:{grid:{display:false},ticks:{font:{size:10}}}}}});
+  }
+  if(page==='analytics'){
+    const sorted=[...AD.students].sort((a,b)=>b.riskPct-a.riskPct);
+    const r1=document.getElementById('riskChart');
+    if(r1) charts.r=new Chart(r1,{type:'doughnut',data:{labels:['High','Medium','Low'],datasets:[{data:[2,2,4],backgroundColor:[RED,YELLOW,GREEN],borderWidth:0}]},options:{...base,cutout:'65%',plugins:{legend:{display:true,position:'bottom',labels:{font:{size:11,family:'Sora'},boxWidth:12}}}}});
+    const r2=document.getElementById('gpaChart');
+    if(r2) charts.g=new Chart(r2,{type:'bar',data:{labels:AD.students.map(s=>s.name.split(' ')[0]),datasets:[{data:AD.students.map(s=>s.gpa),backgroundColor:AD.students.map(s=>riskColor(s.risk)),borderRadius:6,barPercentage:0.6}]},options:{...base,scales:{y:{min:2,max:4.2,grid:{color:'#f0f0f0'},ticks:{font:{family:'DM Mono',size:10}}},x:{grid:{display:false},ticks:{font:{size:10}}}}}});
+    const r3=document.getElementById('allRiskChart');
+    if(r3) charts.a=new Chart(r3,{type:'bar',data:{labels:sorted.map(s=>s.name.split(' ')[0]),datasets:[{data:sorted.map(s=>s.riskPct),backgroundColor:sorted.map(s=>riskColor(s.risk)),borderRadius:6,barPercentage:0.6}]},options:{...base,scales:{y:{min:0,max:100,grid:{color:'#f0f0f0'},ticks:{font:{family:'DM Mono',size:10},callback:v=>v+'%'}},x:{grid:{display:false},ticks:{font:{size:10}}}}}});
+  }
+}
+</script>
+</body>
+</html>
